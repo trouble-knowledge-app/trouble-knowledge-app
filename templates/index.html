@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>トラブル＆ナレッジ記録 | 機械設計エンジニア</title>
+    <meta name="description" content="機械設計エンジニア向けのトラブルシューティングとナレッジ記録管理アプリ">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- ヘッダー -->
+    <header class="header">
+        <div class="header-inner">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1>トラブル＆ナレッジ記録</h1>
+                    <p class="logo-subtitle">機械設計エンジニア向け</p>
+                </div>
+            </div>
+            <div class="header-stats" id="header-stats">
+                <div class="stat-badge">
+                    <span class="stat-number" id="total-count">0</span>
+                    <span class="stat-label">件の記録</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <!-- 入力フォームセクション -->
+        <section class="form-section">
+            <div class="section-header" id="form-toggle">
+                <h2>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    新規記録
+                </h2>
+                <button class="toggle-btn" id="toggle-form-btn" aria-label="フォームの展開/折りたたみ">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+            </div>
+            <form id="record-form" class="record-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="phenomenon">
+                            <span class="label-icon label-icon-phenomenon">1</span>
+                            事象
+                        </label>
+                        <textarea id="phenomenon" name="phenomenon" rows="4" placeholder="何が起きたか？どのような問題が発生したか？" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="cause">
+                            <span class="label-icon label-icon-cause">2</span>
+                            原因の推測
+                        </label>
+                        <textarea id="cause" name="cause" rows="4" placeholder="なぜその事象が発生したと考えられるか？" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="response">
+                            <span class="label-icon label-icon-response">3</span>
+                            現場の対応
+                        </label>
+                        <textarea id="response" name="response" rows="4" placeholder="どのような対応を行ったか？結果はどうだったか？" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="future_note">
+                            <span class="label-icon label-icon-future">4</span>
+                            未来の自分への指示
+                        </label>
+                        <textarea id="future_note" name="future_note" rows="4" placeholder="次回同じ事象が起きた場合に何をすべきか？" required></textarea>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="reset" class="btn btn-secondary" id="btn-reset">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="1 4 1 10 7 10"></polyline>
+                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                        </svg>
+                        リセット
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="btn-submit">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                            <polyline points="7 3 7 8 15 8"></polyline>
+                        </svg>
+                        記録を保存
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- 検索＆一覧セクション -->
+        <section class="list-section">
+            <div class="search-bar">
+                <div class="search-input-wrapper">
+                    <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="search-input" placeholder="キーワードで記録を検索..." autocomplete="off">
+                    <button class="search-clear" id="search-clear" aria-label="検索をクリア" style="display:none;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+                <div class="search-meta" id="search-meta"></div>
+            </div>
+
+            <div class="records-container" id="records-container"></div>
+
+            <div class="empty-state" id="empty-state" style="display:none;">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                <p id="empty-message">まだ記録がありません。<br>上のフォームから最初の記録を追加しましょう。</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- 通知トースト -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- 削除確認モーダル -->
+    <div class="modal-overlay" id="delete-modal" style="display:none;">
+        <div class="modal">
+            <div class="modal-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+            </div>
+            <h3>記録を削除しますか？</h3>
+            <p>この操作は元に戻せません。</p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="cancel-delete">キャンセル</button>
+                <button class="btn btn-danger" id="confirm-delete">削除する</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
