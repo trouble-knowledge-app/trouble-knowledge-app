@@ -20,10 +20,125 @@ document.addEventListener("DOMContentLoaded", () => {
   const exportBtn = document.getElementById("export-btn");
   const exportDropdown = document.getElementById("export-dropdown");
 
+  // 認証関連
+  const authModal = document.getElementById("auth-modal");
+  const apiKeyInput = document.getElementById("api-key-input");
+  const authSubmitBtn = document.getElementById("auth-submit");
+  const authError = document.getElementById("auth-error");
+  const logoutBtn = document.getElementById("logout-btn");
+
   let deleteTargetId = null;
   let searchDebounceTimer = null;
+  let csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
 
-  loadRecords();
+  // --- 認証管理 ---
+  function getApiKey() {
+    return localStorage.getItem("app_api_key") || "";
+  }
+
+  function setApiKey(key) {
+    localStorage.setItem("app_api_key", key);
+  }
+
+  function clearApiKey() {
+    localStorage.removeItem("app_api_key");
+  }
+
+  function getAuthHeaders() {
+    return {
+      "X-API-Key": getApiKey(),
+      "X-CSRF-Token": csrfToken,
+    };
+  }
+
+  function showAuthModal() {
+    authModal.style.display = "flex";
+    apiKeyInput.value = "";
+    authError.style.display = "none";
+    setTimeout(() => apiKeyInput.focus(), 100);
+  }
+
+  function hideAuthModal() {
+    authModal.style.display = "none";
+  }
+
+  async function authenticate(key) {
+    try {
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ api_key: key }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "認証に失敗しました");
+      }
+      // 認証成功: CSRFトークンを更新
+      if (data.csrf_token) {
+        csrfToken = data.csrf_token;
+      }
+      return true;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  // APIレスポンスで401の場合に認証を再要求
+  async function fetchWithAuth(url, options = {}) {
+    const headers = { ...getAuthHeaders(), ...(options.headers || {}) };
+    const res = await fetch(url, { ...options, headers });
+    if (res.status === 401) {
+      clearApiKey();
+      showAuthModal();
+      throw new Error("認証が必要です。APIキーを入力してください。");
+    }
+    return res;
+  }
+
+  // 認証フロー
+  authSubmitBtn.addEventListener("click", async () => {
+    const key = apiKeyInput.value.trim();
+    if (!key) {
+      authError.textContent = "APIキーを入力してください。";
+      authError.style.display = "block";
+      return;
+    }
+    authSubmitBtn.disabled = true;
+    authSubmitBtn.textContent = "認証中...";
+    try {
+      await authenticate(key);
+      setApiKey(key);
+      hideAuthModal();
+      showToast("認証に成功しました！", "success");
+      loadRecords();
+    } catch (err) {
+      authError.textContent = err.message;
+      authError.style.display = "block";
+    } finally {
+      authSubmitBtn.disabled = false;
+      authSubmitBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg> ログイン`;
+    }
+  });
+
+  apiKeyInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") authSubmitBtn.click();
+  });
+
+  // ログアウト
+  logoutBtn.addEventListener("click", () => {
+    clearApiKey();
+    showAuthModal();
+    recordsContainer.innerHTML = "";
+    totalCount.textContent = "0";
+    showToast("ログアウトしました。", "info");
+  });
+
+  // 初回チェック
+  if (getApiKey()) {
+    loadRecords();
+  } else {
+    showAuthModal();
+  }
 
   // エクスポートボタン
   exportBtn.addEventListener("click", (e) => {
@@ -49,7 +164,7 @@ document.addEventListener("DOMContentLoaded", () => {
       };
 
       try {
-        const res = await fetch(url);
+        const res = await fetchWithAuth(url);
         if (!res.ok) throw new Error("エクスポートに失敗しました。");
         const blob = await res.blob();
 
@@ -66,16 +181,14 @@ document.addEventListener("DOMContentLoaded", () => {
             showToast(`ファイルを保存しました！`, "success");
             return;
           } catch (pickerErr) {
-            // ユーザーがキャンセルした場合
             if (pickerErr.name === "AbortError") {
               showToast("保存がキャンセルされました。", "info");
               return;
             }
-            // それ以外のエラーはフォールバック
           }
         }
 
-        // フォールバック: 通常のダウンロード
+        // フォールバック
         const downloadUrl = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = downloadUrl;
@@ -125,7 +238,11 @@ document.addEventListener("DOMContentLoaded", () => {
     submitBtn.disabled = true;
     submitBtn.innerHTML = `<svg class="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> 保存中...`;
     try {
-      const res = await fetch("/api/records", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      const res = await fetchWithAuth("/api/records", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || "保存に失敗しました。"); }
       recordForm.reset();
       showToast("記録を保存しました！", "success");
@@ -155,7 +272,7 @@ document.addEventListener("DOMContentLoaded", () => {
   async function loadRecords(query = "") {
     try {
       const url = query ? `/api/records?q=${encodeURIComponent(query)}` : "/api/records";
-      const res = await fetch(url);
+      const res = await fetchWithAuth(url);
       if (!res.ok) throw new Error("記録の読み込みに失敗しました。");
       const records = await res.json();
       renderRecords(records, query);
@@ -219,7 +336,7 @@ document.addEventListener("DOMContentLoaded", () => {
   confirmDeleteBtn.addEventListener("click", async () => {
     if (!deleteTargetId) return;
     try {
-      const res = await fetch(`/api/records/${deleteTargetId}`, { method: "DELETE" });
+      const res = await fetchWithAuth(`/api/records/${deleteTargetId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("削除に失敗しました。");
       deleteModal.style.display = "none"; deleteTargetId = null;
       showToast("記録を削除しました。", "info");

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Timer</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        :root {
+            --bg-color: #0f172a;
+            --container-bg: rgba(30, 41, 59, 0.7);
+            --text-color: #f1f5f9;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --danger-color: #ef4444;
+            --danger-hover: #dc2626;
+            --success-color: #10b981;
+            --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            background: var(--container-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 24px;
+            padding: 3rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border: var(--glass-border);
+            text-align: center;
+            width: 90%;
+            max-width: 450px;
+            transition: transform 0.3s ease;
+        }
+
+        .container:hover {
+            transform: translateY(-5px);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 300;
+            margin-bottom: 2rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #94a3b8;
+        }
+
+        .timer-display {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 5rem;
+            font-weight: 700;
+            margin: 1rem 0;
+            text-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+            line-height: 1;
+            color: var(--text-color);
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.05);
+            border: var(--glass-border);
+            color: var(--text-color);
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'Inter', sans-serif;
+            min-width: 100px;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.primary {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+        }
+
+        button.primary:hover {
+            background: var(--accent-hover);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
+        }
+
+        button.danger {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            border-color: rgba(239, 68, 68, 0.4);
+        }
+
+        button.danger:hover {
+            background: rgba(239, 68, 68, 0.3);
+            color: #fee2e2;
+        }
+        
+        .input-group {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        input[type="number"] {
+            background: rgba(0, 0, 0, 0.3);
+            border: var(--glass-border);
+            border-radius: 8px;
+            color: var(--text-color);
+            padding: 0.5rem;
+            width: 80px;
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.25rem;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+        }
+        
+        .label {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+        
+        .input-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Hide number input spinners */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        .progress-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.1;
+            pointer-events: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Timer</h1>
+        
+        <div class="input-group" id="input-group">
+            <div class="input-wrapper">
+                <span class="label">MIN</span>
+                <input type="number" id="minutes-input" min="0" max="99" value="05">
+            </div>
+            <div style="align-self: flex-end; padding-bottom: 0.5rem; font-size: 1.5rem;">:</div>
+            <div class="input-wrapper">
+                <span class="label">SEC</span>
+                <input type="number" id="seconds-input" min="0" max="59" value="00">
+            </div>
+        </div>
+
+        <div class="timer-display" id="display">05:00</div>
+
+        <div class="controls">
+            <button id="reset-btn" class="danger">Reset</button>
+            <button id="start-btn" class="primary">Start</button>
+        </div>
+    </div>
+
+    <script>
+        const display = document.getElementById('display');
+        const minutesInput = document.getElementById('minutes-input');
+        const secondsInput = document.getElementById('seconds-input');
+        const startBtn = document.getElementById('start-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const inputGroup = document.getElementById('input-group');
+
+        let interval;
+        let timeLeft = 0;
+        let isRunning = false;
+        let initialTime = 0;
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        function updateDisplay() {
+            display.textContent = formatTime(timeLeft);
+            // Change color when time is low (optional visual cue)
+            if (timeLeft < 10 && timeLeft > 0) {
+                display.style.color = '#ef4444';
+                display.style.textShadow = '0 0 20px rgba(239, 68, 68, 0.4)';
+            } else {
+                display.style.color = 'var(--text-color)';
+                display.style.textShadow = '0 0 20px rgba(59, 130, 246, 0.3)';
+            }
+        }
+
+        function toggleInputs(enabled) {
+            minutesInput.disabled = !enabled;
+            secondsInput.disabled = !enabled;
+            if (!enabled) {
+                inputGroup.style.opacity = '0.5';
+                inputGroup.style.pointerEvents = 'none';
+            } else {
+                inputGroup.style.opacity = '1';
+                inputGroup.style.pointerEvents = 'auto';
+            }
+        }
+
+        function startTimer() {
+            if (isRunning) {
+                // Pause
+                clearInterval(interval);
+                isRunning = false;
+                startBtn.textContent = 'Resume';
+                startBtn.classList.remove('danger'); // If we had a pause style
+                return;
+            }
+
+            // Start
+            if (timeLeft === 0) {
+                const mins = parseInt(minutesInput.value) || 0;
+                const secs = parseInt(secondsInput.value) || 0;
+                timeLeft = mins * 60 + secs;
+                initialTime = timeLeft;
+                if (timeLeft <= 0) return;
+            }
+
+            isRunning = true;
+            startBtn.textContent = 'Pause';
+            toggleInputs(false);
+            display.style.display = 'block';
+            // hide inputs visually or keep them? Keeping them visible but disabled is fine.
+
+            interval = setInterval(() => {
+                timeLeft--;
+                updateDisplay();
+
+                if (timeLeft <= 0) {
+                    clearInterval(interval);
+                    isRunning = false;
+                    startBtn.textContent = 'Start';
+                    toggleInputs(true);
+                    display.style.color = '#10b981'; // Green on finish
+                    display.style.textShadow = '0 0 30px rgba(16, 185, 129, 0.6)';
+                    // Play a sound or shake? 
+                    // Simple alert for now
+                    setTimeout(() => alert('Time is up!'), 100);
+                }
+            }, 1000);
+        }
+
+        function resetTimer() {
+            clearInterval(interval);
+            isRunning = false;
+            startBtn.textContent = 'Start';
+            const mins = parseInt(minutesInput.value) || 0;
+            const secs = parseInt(secondsInput.value) || 0;
+            timeLeft = mins * 60 + secs;
+            updateDisplay();
+            toggleInputs(true);
+            display.style.color = 'var(--text-color)';
+        }
+
+        // Initialize display based on inputs
+        function init() {
+           const mins = parseInt(minutesInput.value) || 0;
+           const secs = parseInt(secondsInput.value) || 0;
+           timeLeft = mins * 60 + secs;
+           updateDisplay();
+        }
+
+        startBtn.addEventListener('click', startTimer);
+        resetBtn.addEventListener('click', resetTimer);
+        
+        minutesInput.addEventListener('change', init);
+        secondsInput.addEventListener('change', init);
+        minutesInput.addEventListener('keyup', init);
+        secondsInput.addEventListener('keyup', init);
+
+        init();
+
+    </script>
+</body>
+</html>
