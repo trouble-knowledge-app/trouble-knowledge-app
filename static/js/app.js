@@ -20,6 +20,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const exportBtn = document.getElementById("export-btn");
   const exportDropdown = document.getElementById("export-dropdown");
 
+  // タグ関連
+  const tagsHidden = document.getElementById("tags-hidden");
+  const tagInputField = document.getElementById("tag-input-field");
+  const selectedTagsContainer = document.getElementById("selected-tags");
+  const suggestedTags = document.querySelectorAll(".suggest-tag");
+  let currentTags = [];
+
   // 認証関連
   const authModal = document.getElementById("auth-modal");
   const apiKeyInput = document.getElementById("api-key-input");
@@ -140,6 +147,62 @@ document.addEventListener("DOMContentLoaded", () => {
     showAuthModal();
   }
 
+  // --- タグ管理 ---
+  function updateTagsUI() {
+    selectedTagsContainer.innerHTML = "";
+    currentTags.forEach(tag => {
+      const span = document.createElement("span");
+      span.className = "tag-badge tag-removable";
+      span.textContent = tag;
+      const removeBtn = document.createElement("button");
+      removeBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+      removeBtn.type = "button";
+      removeBtn.onclick = () => {
+        currentTags = currentTags.filter(t => t !== tag);
+        updateTagsUI();
+      };
+      span.appendChild(removeBtn);
+      selectedTagsContainer.appendChild(span);
+    });
+    tagsHidden.value = currentTags.join(",");
+    
+    suggestedTags.forEach(btn => {
+      if (currentTags.includes(btn.dataset.tag)) {
+        btn.classList.add("active");
+      } else {
+        btn.classList.remove("active");
+      }
+    });
+  }
+
+  suggestedTags.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const tag = btn.dataset.tag;
+      if (currentTags.includes(tag)) {
+        currentTags = currentTags.filter(t => t !== tag);
+      } else {
+        currentTags.push(tag);
+      }
+      updateTagsUI();
+    });
+  });
+
+  tagInputField.addEventListener("keydown", (e) => {
+    // フォーム送信を防ぐ
+    if (e.key === "Enter") {
+      e.preventDefault();
+    }
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      const tag = tagInputField.value.replace(/,/g, '').trim();
+      if (tag && !currentTags.includes(tag)) {
+        currentTags.push(tag);
+        updateTagsUI();
+      }
+      tagInputField.value = "";
+    }
+  });
+
   // エクスポートボタン
   exportBtn.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -254,6 +317,7 @@ document.addEventListener("DOMContentLoaded", () => {
       cause: document.getElementById("cause").value.trim(),
       response: document.getElementById("response").value.trim(),
       future_note: document.getElementById("future_note").value.trim(),
+      tags: tagsHidden.value
     };
     if (!data.phenomenon || !data.cause || !data.response || !data.future_note) {
       showToast("すべての項目を入力してください。", "error");
@@ -270,6 +334,8 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || "保存に失敗しました。"); }
       recordForm.reset();
+      currentTags = [];
+      updateTagsUI();
       showToast("記録を保存しました！", "success");
       loadRecords();
     } catch (err) { showToast(err.message, "error"); }
@@ -324,6 +390,14 @@ document.addEventListener("DOMContentLoaded", () => {
     recordsContainer.querySelectorAll("[data-delete-id]").forEach((btn) => {
       btn.addEventListener("click", () => { deleteTargetId = btn.dataset.deleteId; deleteModal.style.display = "flex"; });
     });
+    recordsContainer.querySelectorAll(".record-tag").forEach((badge) => {
+      badge.addEventListener("click", () => {
+        searchInput.value = badge.dataset.search;
+        searchClear.style.display = "flex";
+        loadRecords(badge.dataset.search);
+        recordsContainer.scrollIntoView({ behavior: 'smooth' });
+      });
+    });
   }
 
   function createRecordCard(record, query, index) {
@@ -336,6 +410,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const regex = new RegExp(`(${escapeRegex(escapedQuery)})`, "gi");
       return escaped.replace(regex, "<mark>$1</mark>");
     };
+    const tagsHtml = record.tags ? record.tags.split(",").map(tag => 
+      `<span class="tag-badge record-tag" data-search="${escapeHtml(tag.trim())}" title="このタグで検索">${escapeHtml(tag.trim())}</span>`
+    ).join("") : "";
     return `
       <div class="record-card" style="animation-delay: ${delay}s">
         <div class="card-header">
@@ -348,6 +425,7 @@ document.addEventListener("DOMContentLoaded", () => {
           </button>
         </div>
         <div class="card-body">
+          ${tagsHtml ? `<div class="card-tags">${tagsHtml}</div>` : ""}
           <div class="card-field card-field-phenomenon"><div class="card-field-label"><span class="dot dot-phenomenon"></span>事象</div><div class="card-field-text">${highlight(record.phenomenon)}</div></div>
           <div class="card-field card-field-cause"><div class="card-field-label"><span class="dot dot-cause"></span>原因の推測</div><div class="card-field-text">${highlight(record.cause)}</div></div>
           <div class="card-field card-field-response"><div class="card-field-label"><span class="dot dot-response"></span>現場の対応</div><div class="card-field-text">${highlight(record.response)}</div></div>

@@ -59,6 +59,11 @@ def init_db():
         )
     """
     )
+    # マイグレーション: tagsカラム追加 (すでに存在する場合は無視)
+    try:
+        conn.execute("ALTER TABLE records ADD COLUMN tags TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
     conn.commit()
     conn.close()
 
@@ -149,9 +154,10 @@ def get_records():
                OR cause LIKE ?
                OR response LIKE ?
                OR future_note LIKE ?
+               OR tags LIKE ?
             ORDER BY created_at DESC
             """,
-            (search, search, search, search),
+            (search, search, search, search, search),
         ).fetchall()
     else:
         rows = conn.execute(
@@ -169,6 +175,7 @@ def get_records():
                 "cause": row["cause"],
                 "response": row["response"],
                 "future_note": row["future_note"],
+                "tags": row["tags"] if "tags" in row.keys() else "",
                 "created_at": row["created_at"],
             }
         )
@@ -190,6 +197,10 @@ def create_record():
     if not data:
         return jsonify({"error": "データが送信されていません"}), 400
 
+    tags = data.get("tags", "").strip()
+    if len(tags) > MAX_FIELD_LENGTH:
+        return jsonify({"error": f"tags は{MAX_FIELD_LENGTH}文字以内にしてください"}), 400
+
     required = ["phenomenon", "cause", "response", "future_note"]
     for field in required:
         value = data.get(field, "")
@@ -203,14 +214,15 @@ def create_record():
     conn = get_db()
     cursor = conn.execute(
         """
-        INSERT INTO records (phenomenon, cause, response, future_note)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO records (phenomenon, cause, response, future_note, tags)
+        VALUES (?, ?, ?, ?, ?)
         """,
         (
             data["phenomenon"].strip(),
             data["cause"].strip(),
             data["response"].strip(),
             data["future_note"].strip(),
+            tags,
         ),
     )
     conn.commit()
@@ -226,6 +238,7 @@ def create_record():
             "cause": row["cause"],
             "response": row["response"],
             "future_note": row["future_note"],
+            "tags": row["tags"] if "tags" in row.keys() else "",
             "created_at": row["created_at"],
         }
     ), 201
@@ -268,9 +281,10 @@ def export_records():
                OR cause LIKE ?
                OR response LIKE ?
                OR future_note LIKE ?
+               OR tags LIKE ?
             ORDER BY created_at DESC
             """,
-            (search, search, search, search),
+            (search, search, search, search, search),
         ).fetchall()
     else:
         rows = conn.execute(
@@ -288,6 +302,7 @@ def export_records():
                 "cause": row["cause"],
                 "response": row["response"],
                 "future_note": row["future_note"],
+                "tags": row["tags"] if "tags" in row.keys() else "",
                 "created_at": row["created_at"],
             }
         )
@@ -314,6 +329,8 @@ def export_records():
         for i, r in enumerate(records, 1):
             lines.append("=" * 52)
             lines.append(f"  記録 #{i}  |  {r['created_at']}")
+            if r["tags"]:
+                lines.append(f"  タグ: {r['tags']}")
             lines.append("=" * 52)
             lines.append(f"【事象】\n{r['phenomenon']}\n")
             lines.append(f"【原因の推測】\n{r['cause']}\n")
@@ -337,7 +354,7 @@ def export_records():
         output.write(b"\xef\xbb\xbf")
         wrapper = io.TextIOWrapper(output, encoding="utf-8", newline="")
         writer = csv.writer(wrapper)
-        writer.writerow(["ID", "事象", "原因の推測", "現場の対応", "未来の自分への指示", "記録日時"])
+        writer.writerow(["ID", "事象", "原因の推測", "現場の対応", "未来の自分への指示", "タグ", "記録日時"])
         for r in records:
             writer.writerow([
                 r["id"],
@@ -345,6 +362,7 @@ def export_records():
                 r["cause"],
                 r["response"],
                 r["future_note"],
+                r["tags"],
                 r["created_at"],
             ])
         wrapper.flush()
