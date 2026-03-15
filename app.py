@@ -39,7 +39,7 @@ limiter = Limiter(
 
 def get_db():
     """データベース接続を取得"""
-    conn = sqlite3.connect(DATABASE)
+    conn = sqlite3.connect(DATABASE, timeout=10)
     conn.row_factory = sqlite3.Row
     return conn
 
