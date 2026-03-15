@@ -17,11 +17,86 @@ document.addEventListener("DOMContentLoaded", () => {
   const confirmDeleteBtn = document.getElementById("confirm-delete");
   const toggleFormBtn = document.getElementById("toggle-form-btn");
   const formToggle = document.getElementById("form-toggle");
+  const exportBtn = document.getElementById("export-btn");
+  const exportDropdown = document.getElementById("export-dropdown");
 
   let deleteTargetId = null;
   let searchDebounceTimer = null;
 
   loadRecords();
+
+  // エクスポートボタン
+  exportBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isVisible = exportDropdown.style.display === "block";
+    exportDropdown.style.display = isVisible ? "none" : "block";
+  });
+
+  // エクスポートオプション選択
+  exportDropdown.querySelectorAll(".export-option").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const format = btn.dataset.format;
+      const query = searchInput.value.trim();
+      let url = `/api/records/export?format=${format}`;
+      if (query) url += `&q=${encodeURIComponent(query)}`;
+      exportDropdown.style.display = "none";
+
+      const mimeTypes = {
+        csv: { description: "CSV ファイル", accept: { "text/csv": [".csv"] } },
+        json: { description: "JSON ファイル", accept: { "application/json": [".json"] } },
+        txt: { description: "テキストファイル", accept: { "text/plain": [".txt"] } },
+      };
+
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("エクスポートに失敗しました。");
+        const blob = await res.blob();
+
+        // File System Access API 対応ブラウザ（Chrome/Edge）
+        if (window.showSaveFilePicker) {
+          try {
+            const handle = await window.showSaveFilePicker({
+              suggestedName: `knowledge_export.${format}`,
+              types: [mimeTypes[format]],
+            });
+            const writable = await handle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            showToast(`ファイルを保存しました！`, "success");
+            return;
+          } catch (pickerErr) {
+            // ユーザーがキャンセルした場合
+            if (pickerErr.name === "AbortError") {
+              showToast("保存がキャンセルされました。", "info");
+              return;
+            }
+            // それ以外のエラーはフォールバック
+          }
+        }
+
+        // フォールバック: 通常のダウンロード
+        const downloadUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = downloadUrl;
+        a.download = `knowledge_export.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(downloadUrl);
+        showToast(`${format.toUpperCase()} ファイルをダウンロードしました！`, "success");
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    });
+  });
+
+  // ドロップダウン外クリックで閉じる
+  document.addEventListener("click", (e) => {
+    if (!exportBtn.contains(e.target) && !exportDropdown.contains(e.target)) {
+      exportDropdown.style.display = "none";
+    }
+  });
 
   formToggle.addEventListener("click", () => {
     const isHidden = recordForm.classList.contains("hidden");

@@ -257,6 +257,59 @@ body::before {
 
 .search-meta { font-size: 0.8rem; color: var(--text-muted); margin-top: 8px; padding-left: 4px; min-height: 1.2em; }
 
+.search-row { display: flex; align-items: center; gap: 12px; }
+
+.export-wrapper { position: relative; flex-shrink: 0; }
+
+.btn-export {
+    display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px;
+    background: linear-gradient(135deg, rgba(52, 211, 153, 0.15), rgba(96, 165, 250, 0.15));
+    border: 1px solid rgba(52, 211, 153, 0.3); border-radius: var(--radius-md);
+    color: var(--accent-green); font-family: var(--font-sans);
+    font-size: 0.875rem; font-weight: 600; cursor: pointer;
+    transition: all var(--transition-fast); white-space: nowrap;
+}
+
+.btn-export:hover {
+    background: linear-gradient(135deg, rgba(52, 211, 153, 0.25), rgba(96, 165, 250, 0.25));
+    border-color: rgba(52, 211, 153, 0.5); transform: translateY(-1px);
+    box-shadow: 0 0 20px rgba(52, 211, 153, 0.15);
+}
+
+.btn-export:active { transform: translateY(0); }
+
+.export-dropdown {
+    position: absolute; top: calc(100% + 8px); right: 0; z-index: 200;
+    min-width: 260px; background: var(--bg-secondary);
+    border: 1px solid var(--border-color); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg); padding: 6px;
+    animation: dropdownIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    backdrop-filter: blur(20px);
+}
+
+@keyframes dropdownIn {
+    from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.export-option {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    padding: 12px 14px; background: transparent; border: none;
+    border-radius: var(--radius-sm); color: var(--text-primary);
+    font-family: var(--font-sans); font-size: 0.875rem;
+    cursor: pointer; transition: all var(--transition-fast); text-align: left;
+}
+
+.export-option:hover { background: var(--bg-glass-hover); }
+
+.export-option svg { color: var(--accent-blue); flex-shrink: 0; }
+
+.export-option div { display: flex; flex-direction: column; gap: 2px; }
+
+.export-option-title { font-weight: 600; font-size: 0.875rem; line-height: 1; }
+
+.export-option-desc { font-size: 0.7rem; color: var(--text-muted); line-height: 1.2; }
+
 .records-container { display: flex; flex-direction: column; gap: 16px; }
 
 .record-card {
@@ -368,6 +421,10 @@ body::before {
     .record-card { padding: 18px; }
     .form-actions { flex-direction: column; }
     .form-actions .btn { justify-content: center; }
+    .search-row { gap: 8px; }
+    .btn-export { padding: 12px; }
+    .btn-export span { display: none; }
+    .export-dropdown { right: 0; min-width: 220px; }
 }
 
 ::-webkit-scrollbar { width: 6px; }
