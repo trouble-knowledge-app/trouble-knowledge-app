@@ -168,11 +168,35 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!res.ok) throw new Error("エクスポートに失敗しました。");
         const blob = await res.blob();
 
-        // File System Access API 対応ブラウザ（Chrome/Edge）
-        if (window.showSaveFilePicker) {
+        const fileName = `knowledge_export.${format}`;
+        const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+
+        // スマホ向け: Web Share APIによるファイル共有/保存（「ファイルに保存」等が選択可能）
+        if (isMobile && navigator.canShare) {
+          const file = new File([blob], fileName, { type: blob.type });
+          if (navigator.canShare({ files: [file] })) {
+            try {
+              await navigator.share({
+                files: [file],
+                title: 'ナレッジ記録のエクスポート',
+              });
+              showToast("ファイルをエクスポートしました！", "success");
+              return;
+            } catch (shareErr) {
+              if (shareErr.name === "AbortError") {
+                showToast("キャンセルされました。", "info");
+                return;
+              }
+              console.error("Web Share API failed:", shareErr);
+            }
+          }
+        }
+
+        // PC向け: File System Access API 対応ブラウザ（Chrome/Edge等）
+        if (!isMobile && window.showSaveFilePicker) {
           try {
             const handle = await window.showSaveFilePicker({
-              suggestedName: `knowledge_export.${format}`,
+              suggestedName: fileName,
               types: [mimeTypes[format]],
             });
             const writable = await handle.createWritable();
@@ -185,14 +209,15 @@ document.addEventListener("DOMContentLoaded", () => {
               showToast("保存がキャンセルされました。", "info");
               return;
             }
+            console.error("File System Access API failed:", pickerErr);
           }
         }
 
-        // フォールバック
+        // フォールバック（未対応環境など）
         const downloadUrl = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = downloadUrl;
-        a.download = `knowledge_export.${format}`;
+        a.download = fileName;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
